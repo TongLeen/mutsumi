@@ -12,5 +12,6 @@ wheels/
 
 /cfg
 /output
+/script
 
 /test.py
