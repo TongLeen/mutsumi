@@ -47,7 +47,7 @@ class DeepSeek:
         else:
             return ContextWithTools(self.ai, tool_set, system_prompt)
 
-    def interact(self, ctx: Context | ContextWithTools) -> None:
+    def interact(self, ctx: Context | ContextWithTools, *, debug: bool = False) -> None:
         try:
             s = input("> ")
         except KeyboardInterrupt:
@@ -56,12 +56,13 @@ class DeepSeek:
         finish_reason, rsp = ctx.ask(s)
 
         while True:
+            print(rsp) if debug else ...
             if k := rsp.content:
                 print(k)
 
             if isinstance(ctx, ContextWithTools) and (k := rsp.tool_calls):
 
-                retvals = []
+                retvals: list[tuple[str, str]] = []
                 for f in k:
                     fbody = ctx.tool_set.getToolByName(f.name)
                     argus = json.loads(f.arguments)
