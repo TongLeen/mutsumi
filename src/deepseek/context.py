@@ -157,8 +157,8 @@ class Response(BaseModel):
             "role": "assistant",
             "content": self.content,
             "tool_calls": (
-                []
-                if not self.tool_calls
+                None
+                if not (self.tool_calls)
                 else [
                     {
                         "id": i.id,
@@ -170,7 +170,7 @@ class Response(BaseModel):
                     }
                     for i in self.tool_calls
                 ]
-            ),
+            ),  # type: ignore
         }
 
 
