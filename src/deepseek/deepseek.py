@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Literal, overload, NamedTuple, Any
 
 import readline
 from openai import OpenAI
+from rich import print
 
 from ..toolsets import ToolSet
 
