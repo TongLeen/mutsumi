@@ -1,6 +1,7 @@
 from collections.abc import Callable, Iterable
 from copy import deepcopy
-from typing import final, Generic, TypeVar, ParamSpec, override
+from types import UnionType
+from typing import Any, final, Generic, TypeVar, ParamSpec, override
 
 from openai.types.chat import (
     ChatCompletionToolUnionParam,
@@ -34,6 +35,12 @@ class ToolSet:
                 cvtFuncToParam(v) for v in self.__tool_map.values()
             ]
         return deepcopy(self.__cache_tool_param)
+
+    def __or__(self, value: "ToolSet") -> "ToolSet":
+        sum_tool_map = self.__tool_map | value.__tool_map
+        retval = ToolSet([])
+        retval.__tool_map = sum_tool_map
+        return retval
 
 
 def cvtFuncToParam(f: Callable[..., str]) -> ChatCompletionFunctionToolParam:
