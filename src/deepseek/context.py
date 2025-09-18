@@ -1,24 +1,30 @@
-from typing import TYPE_CHECKING, Literal, Any
+from typing import TYPE_CHECKING, Literal, Any, override
 
-from openai import NotGiven, NOT_GIVEN
 from openai.types.chat import (
     ChatCompletionMessage,
     ChatCompletionMessageParam,
-    ChatCompletionMessageFunctionToolCall,
+    ChatCompletionMessageToolCall,
+    ChatCompletionAssistantMessageParam,
 )
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
 from pydantic import BaseModel
 from rich import print
 
+from ..toolsets.tool_set import ToolSet
+
 if TYPE_CHECKING:
     from .deepseek import Completions
 
 
-__all__ = ["Context", "Response"]
+__all__ = ["Context", "ContextWithTools", "Response"]
 
 
 class Context:
-    def __init__(self, ai: "Completions", system_prompt: str | None = None) -> None:
+    def __init__(
+        self,
+        ai: "Completions",
+        system_prompt: str | None = None,
+    ) -> None:
         self.ai = ai
         self.records: list[ChatCompletionMessageParam] = [
             {"content": i, "role": "system"} for i in (system_prompt,) if i
@@ -29,29 +35,59 @@ class Context:
         self,
         msg: str,
         mode: Literal["chat", "reasoner"] = "chat",
-        tool_set: list | NotGiven = NOT_GIVEN,
     ):
         self.records.append({"role": "user", "content": msg})
 
         raw_rsp = self.ai.create(
             messages=self.records,
             model="deepseek-" + mode,
-            tools=tool_set,
             stream=False,
         )
         finish_reason = raw_rsp.choices[0].finish_reason
         rmsg = raw_rsp.choices[0].message
 
         rsp = Response.parseRawResponse(rmsg)
-        self.records.append(rsp.toParam())  # type:ignore
+        self.records.append(rsp.toParam())
+
+        return finish_reason, rsp
+
+
+class ContextWithTools(Context):
+    @override
+    def __init__(
+        self,
+        ai: "Completions",
+        tool_set: ToolSet,
+        system_prompt: str | None = None,
+    ) -> None:
+        super().__init__(ai, system_prompt)
+        self.tool_set = tool_set
+        return
+
+    @override
+    def ask(
+        self,
+        msg: str,
+    ):
+        self.records.append({"role": "user", "content": msg})
+
+        raw_rsp = self.ai.create(
+            messages=self.records,
+            model="deepseek-chat",
+            tools=self.tool_set.toToolParam(),
+            stream=False,
+        )
+        finish_reason = raw_rsp.choices[0].finish_reason
+        rmsg = raw_rsp.choices[0].message
+
+        rsp = Response.parseRawResponse(rmsg)
+        self.records.append(rsp.toParam())
 
         return finish_reason, rsp
 
     def sendToolCallRetvals(
         self,
         values: list[tuple[str, Any]],
-        mode: Literal["chat", "reasoner"] = "chat",
-        tool_set: list | NotGiven = NOT_GIVEN,
     ):
         for v in values:
             self.records.append(
@@ -64,79 +100,15 @@ class Context:
 
         raw_rsp = self.ai.create(
             messages=self.records,
-            model="deepseek-" + mode,
-            tools=tool_set,
+            model="deepseek-chat",
+            tools=self.tool_set.toToolParam(),
             stream=False,
         )
         finish_reason = raw_rsp.choices[0].finish_reason
 
         rsp = Response.parseRawResponse(raw_rsp.choices[0].message)
-        self.records.append(rsp.toParam())  # type:ignore
+        self.records.append(rsp.toParam())
         return finish_reason, rsp
-
-    # def askStream(
-    #     self,
-    #     msg: str,
-    #     mode: Literal["chat", "reasoner"] = "chat",
-    #     tool_set: dict | NotGiven = NOT_GIVEN,
-    # ):
-    #     self.records.append({"role": "user", "content": msg})
-    #     rsp = self.ai.create(
-    #         messages=self.records,
-    #         model="deepseek-" + mode,
-    #         tools=tool_set,
-    #         stream=True,
-    #     )
-
-    #     content_buf: list[str] = []
-    #     tool_calls_buf: list[ChatCompletionMessageFunctionToolCall] = []
-    #     tool_call_buf = ChatCompletionMessageFunctionToolCall()
-    #     for c in rsp:
-    #         d = c.choices[0].delta
-    #         assert not (
-    #             d.content
-    #             and d.tool_calls
-    #             and d.model_extra
-    #             and d.model_extra["reasoning_content"]
-    #         )
-    #         if d.content:
-    #             content_buf.append(d.content)
-    #             yield "content", d.content
-    #         elif d.tool_calls:
-    #             yield "tool_calls", (
-    #                 ToolCall(
-    #                     id=i.id,
-    #                     name=i.function.name,
-    #                     arguments=i.function.arguments,
-    #                 )
-    #                 for i in d.tool_calls
-    #             )
-    #         elif d.model_extra and d.model_extra["reasoning_content"]:
-    #             yield "reasoning_content", d.model_extra["reasoning_content"]
-
-    #         yield
-
-    #     self.records.append(
-    #         {
-    #             "role": "assistant",
-    #             "content": "".join(content_buf),
-    #             "tool_calls": (
-    #                 [
-    #                     {
-    #                         "id": i.id,
-    #                         "type": "function",
-    #                         "function": {
-    #                             "name": i.function.name,
-    #                             "arguments": i.function.arguments,
-    #                         },
-    #                     }
-    #                     for i in tool_calls_buf
-    #                     if isinstance(i, ChatCompletionMessageFunctionToolCall)
-    #                 ]
-    #             ),
-    #         }
-    #     )
-    #     return
 
 
 class Response(BaseModel):
@@ -160,9 +132,9 @@ class Response(BaseModel):
         else:
             tool_calls: list[ToolCall] = []
             for f in rmsg.tool_calls:
-                if not isinstance(f, ChatCompletionMessageFunctionToolCall):
+                if not isinstance(f, ChatCompletionMessageToolCall):
                     raise TypeError(
-                        f"type '{"ChatCompletionMessageFunctionToolCall"}' expected, {type(f)} gotten."
+                        f"type '{"ChatCompletionMessageToolCall"}' expected, {type(f)} gotten."
                     )
                 id = f.id
                 func_name = f.function.name
@@ -180,12 +152,12 @@ class Response(BaseModel):
             tool_calls=tool_calls,
         )
 
-    def toParam(self):
+    def toParam(self) -> ChatCompletionAssistantMessageParam:
         return {
             "role": "assistant",
             "content": self.content,
             "tool_calls": (
-                None
+                []
                 if not self.tool_calls
                 else [
                     {
