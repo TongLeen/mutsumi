@@ -1,6 +1,19 @@
 import logging
-import sys
 from pathlib import Path
+
+from rich.console import Console
+from rich.markdown import Markdown
+
+__all__ = ['console_logger', 'DeepSeekLogger']
+
+class ConsoleWrapper(Console):
+    def write(self, s:str) -> None:
+        self.print(Markdown(s), end="")
+
+console_handler = logging.StreamHandler(ConsoleWrapper())
+
+console_logger = logging.Logger("console")
+console_logger.addHandler(console_handler)
 
 
 log_dir = Path("log").absolute()
@@ -23,7 +36,7 @@ class DeepSeekLogger(logging.Logger):
         self.file_handler.setLevel(logging.DEBUG)
         self.file_handler.setFormatter(self.formatter)
 
-        self.console_handler = logging.StreamHandler()
+        self.console_handler = logging.StreamHandler(ConsoleWrapper())
         self.console_handler.setLevel(logging.INFO)
         self.console_handler.setFormatter(self.formatter)
 
@@ -31,6 +44,3 @@ class DeepSeekLogger(logging.Logger):
         self.addHandler(self.console_handler)
         return
 
-
-dummy_logger = logging.Logger("dummy")
-dummy_logger.addHandler(logging.StreamHandler())

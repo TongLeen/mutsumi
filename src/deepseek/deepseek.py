@@ -7,7 +7,7 @@ from rich import print
 from ..toolsets import ToolSet
 
 from .context import Context, ContextWithTools
-from .logger import DeepSeekLogger, dummy_logger
+from .logger import DeepSeekLogger, console_logger
 
 if TYPE_CHECKING:
     from openai.resources.chat import Completions
@@ -49,7 +49,7 @@ class DeepSeek:
         system_prompt: str | None = None,
         log_name: str | None = None,
     ):
-        logger = DeepSeekLogger(log_name) if log_name is not None else dummy_logger
+        logger = DeepSeekLogger(log_name) if log_name is not None else console_logger
         if tool_set is None:
             return Context(self.ai, logger, system_prompt)
         else:
