@@ -32,7 +32,7 @@ class DeepSeekLogger(logging.Logger):
             "%Y-%m-%d %H:%M:%S",
         )
 
-        self.file_handler = logging.FileHandler(log_dir / "deepseek.log")
+        self.file_handler = logging.FileHandler(log_dir / ("deepseek_" + name + ".log"))
         self.file_handler.setLevel(logging.DEBUG)
         self.file_handler.setFormatter(self.formatter)
 
