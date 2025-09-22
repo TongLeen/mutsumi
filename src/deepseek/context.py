@@ -8,11 +8,11 @@ from openai.types.chat import (
 )
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
 from pydantic import BaseModel
-from rich import print
 
 from ..toolsets.tool_set import ToolSet
 
 if TYPE_CHECKING:
+    from logging import Logger
     from .deepseek import Completions
 
 
@@ -23,12 +23,14 @@ class Context:
     def __init__(
         self,
         ai: "Completions",
+        logger: "Logger",
         system_prompt: str | None = None,
     ) -> None:
         self.ai = ai
         self.records: list[ChatCompletionMessageParam] = [
             {"content": i, "role": "system"} for i in (system_prompt,) if i
         ]
+        self.logger = logger
         return
 
     def ask(
@@ -37,6 +39,9 @@ class Context:
         mode: Literal["chat", "reasoner"] = "chat",
     ):
         self.records.append({"role": "user", "content": msg})
+
+        # log
+        self.logger.info(">>> " + msg)
 
         raw_rsp = self.ai.create(
             messages=self.records,
@@ -49,6 +54,14 @@ class Context:
         rsp = Response.parseRawResponse(rmsg)
         self.records.append(rsp.toParam())
 
+        # log
+        if rsp.reasoning_content:
+            self.logger.info("<?? " + rsp.reasoning_content)
+        if rsp.content:
+            self.logger.info("<<< " + rsp.content)
+        if rsp.tool_calls:
+            for i in rsp.tool_calls:
+                self.logger.debug("<() " + str(i))
         return finish_reason, rsp
 
 
@@ -57,10 +70,11 @@ class ContextWithTools(Context):
     def __init__(
         self,
         ai: "Completions",
+        logger: "Logger",
         tool_set: ToolSet,
         system_prompt: str | None = None,
     ) -> None:
-        super().__init__(ai, system_prompt)
+        super().__init__(ai, logger, system_prompt)
         self.tool_set = tool_set
         return
 
@@ -70,6 +84,9 @@ class ContextWithTools(Context):
         msg: str,
     ):
         self.records.append({"role": "user", "content": msg})
+
+        # log
+        self.logger.info(">>> " + msg)
 
         raw_rsp = self.ai.create(
             messages=self.records,
@@ -82,6 +99,15 @@ class ContextWithTools(Context):
 
         rsp = Response.parseRawResponse(rmsg)
         self.records.append(rsp.toParam())
+
+        # log
+        if rsp.reasoning_content:
+            self.logger.info("<?? " + rsp.reasoning_content)
+        if rsp.content:
+            self.logger.info("<<< " + rsp.content)
+        if rsp.tool_calls:
+            for i in rsp.tool_calls:
+                self.logger.debug("<() " + str(i))
 
         return finish_reason, rsp
 
@@ -97,6 +123,7 @@ class ContextWithTools(Context):
                     "content": v[1],
                 }
             )
+            self.logger.debug(">() " + f"id='{v[0]}' retval='{v[1]}'")
 
         raw_rsp = self.ai.create(
             messages=self.records,
@@ -108,6 +135,16 @@ class ContextWithTools(Context):
 
         rsp = Response.parseRawResponse(raw_rsp.choices[0].message)
         self.records.append(rsp.toParam())
+
+        # log
+        if rsp.reasoning_content:
+            self.logger.info("<?? " + rsp.reasoning_content)
+        if rsp.content:
+            self.logger.info("<<< " + rsp.content)
+        if rsp.tool_calls:
+            for i in rsp.tool_calls:
+                self.logger.debug("<() " + str(i))
+
         return finish_reason, rsp
 
 

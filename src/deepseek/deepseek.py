@@ -1,14 +1,13 @@
 import json
-from collections.abc import Generator
-from typing import TYPE_CHECKING, Literal, overload, NamedTuple, Any
+from typing import TYPE_CHECKING, overload
 
-import readline
 from openai import OpenAI
 from rich import print
 
 from ..toolsets import ToolSet
 
-from .context import Context, ContextWithTools, Response
+from .context import Context, ContextWithTools
+from .logger import DeepSeekLogger, dummy_logger
 
 if TYPE_CHECKING:
     from openai.resources.chat import Completions
@@ -27,7 +26,12 @@ class DeepSeek:
         return
 
     @overload
-    def create(self, *, system_prompt: str | None = None) -> Context: ...
+    def create(
+        self,
+        *,
+        system_prompt: str | None = None,
+        log_name: str | None = None,
+    ) -> Context: ...
 
     @overload
     def create(
@@ -35,6 +39,7 @@ class DeepSeek:
         tool_set: ToolSet,
         *,
         system_prompt: str | None = None,
+        log_name: str | None = None,
     ) -> ContextWithTools: ...
 
     def create(
@@ -42,27 +47,26 @@ class DeepSeek:
         tool_set: ToolSet | None = None,
         *,
         system_prompt: str | None = None,
+        log_name: str | None = None,
     ):
+        logger = DeepSeekLogger(log_name) if log_name is not None else dummy_logger
         if tool_set is None:
-            return Context(self.ai, system_prompt)
+            return Context(self.ai, logger, system_prompt)
         else:
-            return ContextWithTools(self.ai, tool_set, system_prompt)
+            return ContextWithTools(self.ai, logger, tool_set, system_prompt)
 
-    def interact(self, ctx: Context | ContextWithTools, *, debug: bool = False) -> None:
-        try:
-            s = input("> ")
-        except KeyboardInterrupt:
-            exit()
-
-        finish_reason, rsp = ctx.ask(s)
-
+    def interact(self, ctx: Context | ContextWithTools) -> None:
+        finish_reason = "stop"
         while True:
-            print(rsp) if debug else ...
-            if k := rsp.content:
-                print(k)
+            if finish_reason == "stop":
+                try:
+                    s = input("> ")
+                except KeyboardInterrupt:
+                    exit()
+
+                finish_reason, rsp = ctx.ask(s)
 
             if isinstance(ctx, ContextWithTools) and (k := rsp.tool_calls):
-
                 retvals: list[tuple[str, str]] = []
                 for f in k:
                     fbody = ctx.tool_set.getToolByName(f.name)
@@ -73,12 +77,7 @@ class DeepSeek:
                     retvals.append((f.id, retval))
 
             if finish_reason == "stop":
-                try:
-                    s = input("> ")
-                except KeyboardInterrupt:
-                    exit()
-                finish_reason, rsp = ctx.ask(s)
-
+                continue
             elif finish_reason == "tool_calls":
                 assert isinstance(ctx, ContextWithTools)
                 finish_reason, rsp = ctx.sendToolCallRetvals(retvals)
