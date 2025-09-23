@@ -9,7 +9,7 @@ from openai.types.chat import (
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaToolCall
 from pydantic import BaseModel
 
-from ..toolsets.tool_set import ToolSet
+from ..tool_set import ToolSet
 
 if TYPE_CHECKING:
     from logging import Logger

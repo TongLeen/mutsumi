@@ -1,10 +1,7 @@
-import json
+from src.deepseek import DeepSeek
+from src.tool_set import ToolSet
 
 import readline
-from rich import print
-
-from src.deepseek import DeepSeek
-from src.toolsets import ToolSet
 
 NumberBook = {
     "1": "张三",
@@ -28,37 +25,9 @@ if __name__ == "__main__":
         key = f.read()
 
     client = DeepSeek(key)
-    ctx = client.create(tool_set=test_tool_set)
+    ctx = client.create(
+        log_name="main",
+        tool_set=test_tool_set,
+    )
 
-    try:
-        s = input("> ")
-    except KeyboardInterrupt:
-        exit()
-
-    finish_reason, rsp = ctx.ask(s)
-
-    while True:
-        print(rsp)
-        if k := rsp.content:
-            print(k)
-
-        if k := rsp.tool_calls:
-            print(k)
-            retvals = []
-            for f in k:
-                fbody = test_tool_set.getToolByName(f.name)
-                if fbody is None:
-                    raise RuntimeError(f"No tool named '{f.name}'. Called by deepseek.")
-                args = json.loads(f.arguments)
-                retval = fbody(**args)
-                retvals.append((f.id, retval))
-
-        if finish_reason == "stop":
-            try:
-                s = input("> ")
-            except KeyboardInterrupt:
-                exit()
-
-            finish_reason, rsp = ctx.ask(s)
-        elif finish_reason == "tool_calls":
-            finish_reason, rsp = ctx.sendToolCallRetvals(retvals)
+    client.interact(ctx)

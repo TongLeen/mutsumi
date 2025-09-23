@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, overload
 from openai import OpenAI
 from rich import print
 
-from ..toolsets import ToolSet
+from ..tool_set import ToolSet
 
 from .context import Context, ContextWithTools
 from .logger import DeepSeekLogger, console_logger

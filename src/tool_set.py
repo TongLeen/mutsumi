@@ -1,7 +1,6 @@
 from collections.abc import Callable, Iterable
 from copy import deepcopy
-from types import UnionType
-from typing import Any, final, Generic, TypeVar, ParamSpec, override
+from typing import final
 
 from openai.types.chat import (
     ChatCompletionToolUnionParam,
