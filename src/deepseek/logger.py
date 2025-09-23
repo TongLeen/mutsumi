@@ -8,7 +8,7 @@ __all__ = ['console_logger', 'DeepSeekLogger']
 
 class ConsoleWrapper(Console):
     def write(self, s:str) -> None:
-        self.print(Markdown(s), end="")
+        self.print(s, end="")
 
 console_handler = logging.StreamHandler(ConsoleWrapper())
 
