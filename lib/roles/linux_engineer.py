@@ -1,6 +1,6 @@
 from src.role import Role
 
-from ..tool_sets import linux_tool_set
+from ..tool_sets import linux_tool_set, file_tool_set
 
 
 linux_engineer_role_prompt = """
@@ -13,5 +13,5 @@ linux_engineer_role_prompt = """
 
 linux_engineer = Role(
     system_prompt=linux_engineer_role_prompt,
-    tool_set=linux_tool_set,
+    tool_set=linux_tool_set | file_tool_set,
 )
