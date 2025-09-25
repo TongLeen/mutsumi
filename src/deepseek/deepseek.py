@@ -2,6 +2,7 @@ import json
 from logging import Logger
 from typing import TYPE_CHECKING, overload
 
+import readline
 from openai import OpenAI
 
 from ..tool_set import ToolSet
