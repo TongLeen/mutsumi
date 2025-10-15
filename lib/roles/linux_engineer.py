@@ -1,4 +1,4 @@
-from src.role import Role
+from src.mutsumi.role import Role
 
 from ..tool_sets import linux_tool_set, file_tool_set
 

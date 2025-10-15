@@ -1,5 +1,5 @@
-from src.deepseek import DeepSeek
-from src.tool_set import ToolSet
+from src.mutsumi.deepseek import DeepSeek
+from src.mutsumi.tool_set import ToolSet
 
 import readline
 
